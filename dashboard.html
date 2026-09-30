@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div><p class="eyebrow">PERSONAL FINANCE ADVISOR BOT</p><h1>Take control of your money.</h1>
+  <p>Track income and expenses, understand spending patterns, build a practical budget, and work toward savings goals.</p></div>
+  <div class="hero-card"><span>Available savings</span><strong>₹{{ "{:,.0f}".format(report.savings) }}</strong><small>Income minus recorded expenses</small></div>
+</section>
+
+<section class="cards">
+  <div class="metric"><span>Monthly Income</span><b>₹{{ "{:,.0f}".format(report.income) }}</b><em>Recorded</em></div>
+  <div class="metric"><span>Total Expenses</span><b>₹{{ "{:,.0f}".format(report.expenses) }}</b><em>Across categories</em></div>
+  <div class="metric"><span>Savings Rate</span><b>{{ "{:.1f}".format((report.savings/report.income*100) if report.income else 0) }}%</b><em>Current estimate</em></div>
+  <div class="metric"><span>Budget Health</span><b class="{% if report.savings >= 0 %}good{% else %}bad{% endif %}">{% if report.savings >= 0 %}On Track{% else %}Needs Attention{% endif %}</b><em>Based on cash flow</em></div>
+</section>
+
+<div class="grid two">
+<section class="panel">
+  <div class="panel-head"><div><h2>Spending Analysis</h2><p>Where your money is going</p></div></div>
+  <div class="chart-wrap"><canvas id="expenseChart"></canvas></div>
+</section>
+<section class="panel">
+  <div class="panel-head"><div><h2>AI Recommendations</h2><p>Actionable suggestions from your data</p></div></div>
+  <div class="recommendations">
+  {% for s in report.suggestions %}<div class="recommend"><span>✦</span><p>{{ s }}</p></div>{% endfor %}
+  </div>
+</section>
+</div>
+
+<div class="grid two">
+<section class="panel">
+  <div class="panel-head"><div><h2>Add Income</h2><p>Log salary, freelance work or other income</p></div></div>
+  <form method="post" action="{{ url_for('main.add_income') }}" class="form">
+    <input name="source" placeholder="Source (e.g. Salary)" required>
+    <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount ₹" required>
+    <input name="date" type="date">
+    <button>Add Income</button>
+  </form>
+</section>
+<section class="panel">
+  <div class="panel-head"><div><h2>Add Expense</h2><p>Track daily spending by category</p></div></div>
+  <form method="post" action="{{ url_for('main.add_expense') }}" class="form">
+    <select name="category" required><option value="">Choose category</option><option>Rent</option><option>Food</option><option>Transport</option><option>Entertainment</option><option>Shopping</option><option>Bills</option><option>Education</option><option>Healthcare</option><option>Other</option></select>
+    <input name="amount" type="number" min="0.01" step="0.01" placeholder="Amount ₹" required>
+    <input name="description" placeholder="Description (optional)">
+    <input name="date" type="date">
+    <button>Add Expense</button>
+  </form>
+</section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><div><h2>Savings Goals</h2><p>Plan for future needs and emergencies</p></div></div>
+  <form method="post" action="{{ url_for('main.add_goal') }}" class="goal-form">
+    <input name="name" placeholder="Goal name (e.g. Emergency Fund)" required>
+    <input name="target" type="number" min="1" step="0.01" placeholder="Target ₹" required>
+    <input name="deadline" type="date">
+    <button>Create Goal</button>
+  </form>
+  <div class="goals">
+    {% for g in goals %}
+    <div class="goal"><div class="goal-top"><b>{{ g.name }}</b><span>₹{{ "{:,.0f}".format(g.saved) }} / ₹{{ "{:,.0f}".format(g.target) }}</span></div>
+      <div class="progress"><span style="width:{{ [g.saved/g.target*100,100]|min }}%"></span></div>
+      <small>{{ "{:.0f}".format((g.saved/g.target*100) if g.target else 0) }}% saved{% if g.deadline %} · Deadline {{ g.deadline.strftime("%d %b %Y") }}{% endif %}</small>
+    </div>
+    {% else %}<div class="empty">No goals yet. Create your first savings goal above.</div>{% endfor %}
+  </div>
+</section>
+
+<div class="grid two">
+<section class="panel"><div class="panel-head"><div><h2>Recent Expenses</h2><p>Your latest transactions</p></div></div>
+<table><thead><tr><th>Date</th><th>Category</th><th>Amount</th></tr></thead><tbody>
+{% for e in expenses %}<tr><td>{{ e.date.strftime("%d %b") }}</td><td><span class="pill">{{ e.category }}</span></td><td>₹{{ "{:,.0f}".format(e.amount) }}</td></tr>{% else %}<tr><td colspan="3">No expenses recorded.</td></tr>{% endfor %}
+</tbody></table></section>
+<section class="panel"><div class="panel-head"><div><h2>Income Sources</h2><p>Latest recorded income</p></div></div>
+<table><thead><tr><th>Date</th><th>Source</th><th>Amount</th></tr></thead><tbody>
+{% for i in incomes %}<tr><td>{{ i.date.strftime("%d %b") }}</td><td>{{ i.source }}</td><td>₹{{ "{:,.0f}".format(i.amount) }}</td></tr>{% else %}<tr><td colspan="3">No income recorded.</td></tr>{% endfor %}
+</tbody></table></section>
+</div>
+
+<script>
+const labels = {{ report.categories.keys()|list|tojson }};
+const values = {{ report.categories.values()|list|tojson }};
+new Chart(document.getElementById('expenseChart'), {
+  type:'doughnut',
+  data:{labels:labels,datasets:[{data:values,borderWidth:0}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+});
+</script>
+{% endblock %}
